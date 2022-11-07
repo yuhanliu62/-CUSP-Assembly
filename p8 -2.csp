@@ -1,0 +1,106 @@
+           .EQU        CRT_CNTL, $316
+           .EQU        CRT_DATA, $317
+           .EQU        KBD_DATA, $001
+           .EQU        KBD_STAT, $000
+
+           .EQU        CURSOR_HOME, $04
+           .EQU        CRT_WIDTH, 38
+           .EQU        LINE_CHARS, 38
+
+MAIN:      LDS#        $E00 ; print out the original string
+           PSH#        STR_LEN_IN
+           PSH#        STRIN
+           JSR         $E05
+           ADS#        2
+           
+           
+POLL:      INB         KBD_STAT
+           JGE         POLL
+           INB         KBD_DATA
+           OUTB        CRT_DATA ; we dont need to print out, just to see it clear
+           CMA#        48 ; compare to 0, for hlt
+           JEQ         DONE
+           CMA#        49 ; compare to 1, for call to swap
+           JEQ         SWAP_MAIN
+           JMP         POLL
+
+
+SWAP_MAIN: CLR         IND_HEAD ; clear the old data to 0
+           CLR         BKUP_HEAD ; clear the old data to 0
+           CLR         IND_TAIL ; clear the old data to 0
+           CLR         BKUP_TAIL ; clear the old data to 0
+           CLR         STR_TEMP1 ; clear the old data to 0
+           CLR         STR_TEMP2 ; clear the old data to 0
+           LDX#        0
+           STX         IND_HEAD ; Store the head index as 0
+           STX         BKUP_HEAD ; need back up for head, since ind_head will change during swap
+           LDX#        37
+           STX         IND_TAIL ; Store the tail index as 37
+           STX         BKUP_TAIL ; need back up for tail, since ind_tail will change during swap
+           JMP         LOOP
+
+RANGE:     LDX         BKUP_HEAD
+           CMX#        304 ; we test 8 lines here.
+           JEQ         POLL
+           ADX#        38    
+           STX         IND_HEAD ; every time , head + 38 and tail + 38 to find next line
+           STX         BKUP_HEAD
+           LDX         BKUP_TAIL
+           ADX#        38
+           STX         IND_TAIL
+           STX         BKUP_TAIL
+
+; the loop is for swapping, swap the head index object with tail object,
+; then do head++, tail--          
+LOOP:      LDX         IND_HEAD 
+           CMX         IND_TAIL
+           JGT         PTR ; if head index is larger than tail index, go to print
+           LDC         STRIN
+           STA         STR_TEMP1
+           LDX         IND_TAIL
+           LDC         STRIN
+           STA         STR_TEMP2
+           LDA         STR_TEMP1
+           STC         STRIN
+           LDX         IND_HEAD
+           LDA         STR_TEMP2
+           STC         STRIN
+           DEC         IND_TAIL
+           INC         IND_HEAD
+           JMP         LOOP
+           
+
+PTR:       LDA#        CURSOR_HOME ; print out the answer, and go back to keyboard input.
+           OUTB        CRT_CNTL
+           PSH#        STR_LEN_IN
+           PSH#        STRIN
+           JSR         $E05
+           ADS#        2
+           JMP         RANGE
+
+DONE:      HLT
+
+
+           
+
+STRIN:     .CHAR       'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr      ', STR_LEN_IN
+
+
+IND_HEAD:  .WORD 0
+IND_TAIL:  .WORD 0
+
+BKUP_HEAD: .WORD 0
+BKUP_TAIL: .WORD 0
+
+
+
+STR_TEMP1: .WORD 0
+STR_TEMP2: .WORD 0
+
+; index head, tail for swap
+; head:0, tail:37
+; head++, tail-- for loop
+; head > tail ab ba
+; 19,18
+; 0, 37 backup
+; 0 + 38, 37 + 38

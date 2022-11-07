@@ -1,0 +1,31 @@
+           .EQU        KBD_CNTL, $000
+           .EQU        KBD_STAT, $000
+           .EQU        KBD_DATA, $001
+           .EQU        CRT_CNTL, $316
+           .EQU        CRT_DATA, $317
+
+           .EQU        INTERRUPT_ENA, $80
+
+
+           LDA#        INTERRUPT_ENA ; enable kbd interrupts
+           OUTB        KBD_CNTL 
+           SIE
+
+WAIT_LOOP: JMP         WAIT_LOOP ; start over again
+
+; ISR: interrupt service routine
+KBD_ISR:   PSHA                 ; save registers
+           INB         KBD_DATA ; read keystroke
+           CMA#        48       ; HALT when input is 0
+           JEQ         DONE
+           ADA#        2        ; add 2 to the ASCII style (a -> c)
+           OUTB        CRT_DATA ; print out data on the screen
+EXIT:      POPA                 ; restore register
+           IRTN
+
+DONE:      HLT
+
+
+           .EQU        @, $FF8
+           .WORD       KBD_ISR
+           .END
